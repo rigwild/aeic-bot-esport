@@ -1,0 +1,13 @@
+{
+  "name": "aeic-bot-esport",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^11.5.1",
+    "dotenv-safe": "^8.1.0"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "license": "MIT"
+}
