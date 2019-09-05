@@ -12,5 +12,5 @@ Start the bot
 yarn start
 ```
 
-## Licence
-MIT
+## License
+[The MIT license](./LICENSE)
