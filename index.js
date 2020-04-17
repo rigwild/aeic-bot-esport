@@ -1,44 +1,54 @@
+// @ts-check
+
 require('dotenv-safe').config()
 const Discord = require('discord.js')
 
 const bot = new Discord.Client()
 bot.login(process.env.AEIC_ESPORT_BOT_TOKEN)
 
-bot.on('ready', () => {
-  const guild = bot.guilds.find(x => x.name === 'AEIC - Esport')
-  if (!guild) throw new Error('Le serveur AEIC - Esport n\'a pas été trouvé, vérifiez que le bot est bien ajouté au serveur.')
-  guild.channels.find(x => x.name === 'roles').fetchMessages({ limit: 10 })
-  console.log('Bot Connecté')
-})
+const serverId = '515994848893992978'
+/** @type {import('discord.js').Guild} */
+let guildObj = null
+/** @type {import('discord.js').TextChannel} */
+let logChannelObj = null
 
-const rolesList = {
-  'game_Overwatch': 'Overwatch',
-  'game_LoL': 'LoL',
-  'game_CSGO': 'CSGO',
-  'game_Hearthstone': 'Hearthstone',
-  'game_RocketLeague': 'RocketLeague',
-  'game_Fortnite': 'Fortnite',
-  'game_SSBU': 'SSBU',
-  'game_Apex': 'Apex',
-  'game_Minecraft': 'Minecraft'
+const logger = {
+  info: msg => logChannelObj.send(msg),
+  error: (msg, err) => logChannelObj.send(`${msg}\n\`\`\`\n${err.message}\n${err.stack}\`\`\``)
 }
 
-bot.on('messageReactionAdd', (reaction, user) => {
-  if (reaction.message.channel.name === 'roles' && reaction.emoji.name && rolesList.hasOwnProperty(reaction.emoji.name)) {
-    const guild = bot.guilds.find(x => x.name === 'AEIC - Esport')
-    const role = guild.roles.find(x => x.name === rolesList[reaction.emoji.name])
-    guild.members.get(user.id).addRole(role)
-      .then(() => console.log(`Ajout du role '${role.name}' à ${user.username} (ID=${user.id}).`))
-      .catch(err => console.error(`Erreur lors de l'ajout du role '${role.name}' à ${user.username} (ID=${user.id}).`, err))
-  }
+/** @param {'add'|'remove'} action */
+const roleAction = action => (reaction, user) => {
+  if (reaction.message.channel.name !== 'roles' || !reaction.emoji.name || !reaction.emoji.name.startsWith('game_'))
+    return
+
+  const selectedRole = reaction.emoji.name.split('game_')[1]
+  const role = guildObj.roles.find(x => x.name === selectedRole)
+
+  const member = guildObj.members.get(user.id)
+  if (action === 'add')
+    member
+      .addRole(role)
+      .then(() => logger.info(`Added role "${role.name}" to <@${user.id}> (${user.username}).`))
+      .catch(err => logger.error(`Error adding role "${role.name}" to <@${user.id}> (${user.username}).`, err))
+  else if (action === 'remove')
+    member
+      .removeRole(role)
+      .then(() => logger.info(`Removed role "${role.name}" from <@${user.id}> (${user.username}).`))
+      .catch(err => logger.error(`Error removing role "${role.name}" from <@${user.id}> (${user.username}).`, err))
+}
+
+bot.on('ready', () => {
+  guildObj = bot.guilds.get(serverId)
+  logChannelObj = guildObj.channels.find(x => x.name === 'aeic-bot-log')
+  if (!guildObj)
+    throw new Error(
+      `Le serveur AEIC - Esport (id=${serverId}) n\'a pas été trouvé, vérifiez que le bot est bien ajouté au serveur.`
+    )
+
+  guildObj.channels.find(x => x.name === 'roles').fetchMessages({ limit: 10 })
+  console.log('Bot is ready.')
 })
 
-bot.on('messageReactionRemove', (reaction, user) => {
-  if (reaction.message.channel.name === 'roles' && reaction.emoji.name && rolesList.hasOwnProperty(reaction.emoji.name)) {
-    const guild = bot.guilds.find(x => x.name === 'AEIC - Esport')
-    const role = guild.roles.find(x => x.name === rolesList[reaction.emoji.name])
-    guild.members.get(user.id).removeRole(role)
-      .then(() => console.log(`Retrait du role '${role.name}' à ${user.username} (ID=${user.id}).`))
-      .catch(err => console.error(`Erreur lors du retrait du role '${role.name}' à ${user.username} (ID=${user.id}).`, err))
-  }
-})
+bot.on('messageReactionAdd', roleAction('add'))
+bot.on('messageReactionRemove', roleAction('remove'))
